@@ -196,6 +196,7 @@
       <button class="btn ghost" data-act="import">Importar datos (.json)</button>
       <input id="file-import" type="file" accept="application/json,.json" style="display:none">
       <button class="btn warn" data-act="reset">Borrar todo (para todos)</button>
+      <p class="subtle" style="margin-top:12px;text-align:center">Versión: <b>reparto-auto v3</b></p>
     </div>
   </section>
 </main>
@@ -250,8 +251,9 @@ const unitSize = id => (unitObj(id)?Number(unitObj(id).size)||0:0);
 const today = () => new Date().toISOString().slice(0,10);
 function money(n, cur){
   const dec = cur==="USD"?2:0;
-  const v = dec?Math.round(n*100)/100:Math.round(n);
-  return new Intl.NumberFormat("es-CO",{minimumFractionDigits:dec,maximumFractionDigits:dec}).format(v);
+  const abs = Math.abs(dec?Math.round(n*100)/100:Math.round(n));
+  const s = new Intl.NumberFormat("es-CO",{minimumFractionDigits:dec,maximumFractionDigits:dec}).format(abs);
+  return (n<-0.0000001?"-":"")+"$"+s;
 }
 function parseSmart(s){
   s=String(s).trim(); if(s==="")return 0;

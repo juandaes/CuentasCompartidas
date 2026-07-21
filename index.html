@@ -84,6 +84,7 @@
   .chk .cname{flex:1;font-weight:600;font-size:14px}
   .chk .payamt{width:120px}
   .chk .payamt input{padding:8px 10px;font-size:14px}
+  .chk .payall{width:120px;text-align:right;font-size:12px;color:var(--credit);font-weight:700}
 
   .hint{font-size:12px;color:var(--muted);margin-top:6px}
   .hint.err{color:var(--debit);font-weight:700}
@@ -239,7 +240,7 @@ import { getDatabase, ref, onValue, set, push, remove, get, child } from "https:
 const $ = s => document.querySelector(s);
 let db=null, ready=false;
 let state = { units:[], currencies:["ARS","CLP","USD","COP"], expenses:[], payments:[] };
-let draft = { payers:{}, parts:{} };
+let draft = { payers:{}, parts:{}, payersManual:false };
 
 /* ---------- utilidades ---------- */
 const uid = () => Math.random().toString(36).slice(2,9);
@@ -336,18 +337,47 @@ function reconcileDraft(){
   Object.keys(draft.parts).forEach(id=>{if(!unitObj(id))delete draft.parts[id];});
   Object.keys(draft.payers).forEach(id=>{if(!unitObj(id))delete draft.payers[id];});
 }
+function splitEqual(total,n,cur){
+  const dec=cur==="USD"?2:0;const f=dec?100:1;
+  const t=Math.round((total>0?total:0)*f);const base=Math.floor(t/n);let rem=t-base*n;
+  const out=[];for(let i=0;i<n;i++)out.push((base+(i<rem?1:0))/f);
+  return out;
+}
+// Reparte el total por igual entre los pagadores marcados (modo automático),
+// sin pisar lo que el usuario esté editando a mano.
+function syncPayerAmounts(){
+  const ids=Object.keys(draft.payers);
+  if(ids.length<2||draft.payersManual)return;
+  const total=parseSmart($("#g-amount").value);
+  const cur=$("#g-cur").value;
+  const parts=total>0?splitEqual(total,ids.length,cur):ids.map(()=>"");
+  ids.forEach((id,i)=>{
+    draft.payers[id]=String(parts[i]);
+    const inp=$(`[data-payer-amt="${id}"]`);
+    if(inp&&document.activeElement!==inp)inp.value=parts[i];
+  });
+}
 function renderPayers(){
   const host=$("#g-payers");
+  const multi=Object.keys(draft.payers).length>=2;
   host.innerHTML=state.units.map(u=>{
     const on=draft.payers[u.id]!==undefined;
-    return `<div class="chk ${on?"on":""}"><input type="checkbox" ${on?"checked":""} data-payer-chk="${u.id}"><span class="cname">${escapeHtml(u.name)}</span><span class="payamt">${on?`<input class="num-in" inputmode="decimal" data-payer-amt="${u.id}" value="${draft.payers[u.id]||""}" placeholder="monto">`:""}</span></div>`;
+    let tail;
+    if(on&&multi) tail=`<span class="payamt"><input class="num-in" inputmode="decimal" data-payer-amt="${u.id}" value="${draft.payers[u.id]||""}" placeholder="monto"></span>`;
+    else if(on) tail=`<span class="payall">pagó el total</span>`;
+    else tail=`<span class="payamt"></span>`;
+    return `<div class="chk ${on?"on":""}"><input type="checkbox" ${on?"checked":""} data-payer-chk="${u.id}"><span class="cname">${escapeHtml(u.name)}</span>${tail}</div>`;
   }).join("");
   host.querySelectorAll("[data-payer-chk]").forEach(cb=>cb.addEventListener("change",()=>{
     const id=cb.dataset.payerChk;
-    if(cb.checked)draft.payers[id]=draft.payers[id]||"";else delete draft.payers[id];
-    renderPayers();updatePaySum();
+    if(cb.checked)draft.payers[id]="";else delete draft.payers[id];
+    draft.payersManual=false;           // cambiar quién pagó → volver a reparto automático
+    renderPayers();
   }));
-  host.querySelectorAll("[data-payer-amt]").forEach(inp=>inp.addEventListener("input",()=>{draft.payers[inp.dataset.payerAmt]=inp.value;updatePaySum();}));
+  host.querySelectorAll("[data-payer-amt]").forEach(inp=>inp.addEventListener("input",()=>{
+    draft.payers[inp.dataset.payerAmt]=inp.value;draft.payersManual=true;updatePaySum();
+  }));
+  syncPayerAmounts();
   updatePaySum();
 }
 function renderParts(){
@@ -360,12 +390,15 @@ function renderParts(){
   updatePartSum();
 }
 function updatePaySum(){
+  const el=$("#g-paysum");
+  const ids=Object.keys(draft.payers);
   const total=parseSmart($("#g-amount").value);
-  const sum=Object.values(draft.payers).reduce((s,v)=>s+parseSmart(v),0);
-  const el=$("#g-paysum");const n=Object.keys(draft.payers).length;
-  if(n===0){el.className="hint";el.textContent="Marca al menos una unidad que pagó.";return;}
-  if(total>0&&Math.abs(sum-total)>0.5){el.className="hint err";el.textContent=`Los pagos suman ${money(sum,"COP")} y el total es ${money(total,"COP")}. Deben coincidir.`;}
-  else{el.className="hint ok";el.textContent=`Pagos: ${money(sum,"COP")} ✓`;}
+  const cur=$("#g-cur").value;
+  if(ids.length===0){el.className="hint";el.textContent="Marca quién pagó. Si fue una sola unidad, con eso basta.";return;}
+  if(ids.length===1){el.className="hint ok";el.textContent="Pagó el total ✓";return;}
+  const sum=ids.reduce((s,id)=>s+parseSmart(draft.payers[id]),0);
+  if(total>0&&Math.abs(sum-total)>0.5){el.className="hint err";el.textContent=`Los montos suman ${money(sum,cur)} y el total es ${money(total,cur)}. Ajústalos o toca "repartir por igual".`;}
+  else{el.className="hint ok";el.textContent=`Repartido entre ${ids.length} · suma ${money(sum,cur)} ✓`;}
 }
 function updatePartSum(){
   const ids=Object.keys(draft.parts).filter(id=>draft.parts[id]);
@@ -524,7 +557,7 @@ function switchView(name){
   document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("active",b.dataset.view===name));
   window.scrollTo({top:0,behavior:"auto"});
 }
-function resetDraft(){ draft={payers:{},parts:{}}; state.units.forEach(u=>draft.parts[u.id]=true); }
+function resetDraft(){ draft={payers:{},parts:{},payersManual:false}; state.units.forEach(u=>draft.parts[u.id]=true); }
 
 /* ---------- listeners de la DB ---------- */
 function attachListeners(){
@@ -570,9 +603,9 @@ function initUI(){
     const a=b.dataset.act;
     if(a==="add-expense")addExpense();
     else if(a==="pay-equal"){
-      const total=parseSmart($("#g-amount").value);const ids=Object.keys(draft.payers);
-      if(!ids.length){toast("Primero marca quién pagó");return;}
-      const each=total/ids.length;ids.forEach(id=>draft.payers[id]=Math.round(each));renderPayers();
+      const ids=Object.keys(draft.payers);
+      if(ids.length<2){toast("Marca dos o más unidades para repartir el pago");return;}
+      draft.payersManual=false;renderPayers();
     }
     else if(a==="part-all"){const allOn=state.units.every(u=>draft.parts[u.id]);state.units.forEach(u=>draft.parts[u.id]=!allOn);renderParts();}
     else if(a==="add-payment")addPayment();
@@ -584,7 +617,8 @@ function initUI(){
     else if(a==="reset")resetAll();
   });
   document.querySelectorAll("nav.tabs button").forEach(btn=>btn.addEventListener("click",()=>switchView(btn.dataset.view)));
-  $("#g-amount").addEventListener("input",updatePaySum);
+  $("#g-amount").addEventListener("input",()=>{syncPayerAmounts();updatePaySum();});
+  $("#g-cur").addEventListener("change",()=>{syncPayerAmounts();updatePaySum();});
   $("#file-import").addEventListener("change",e=>{if(e.target.files[0])importData(e.target.files[0]);e.target.value="";});
   renderSaldos();
 }

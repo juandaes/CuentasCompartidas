@@ -110,6 +110,19 @@
   .empty{text-align:center;color:var(--muted);padding:22px 8px;font-size:14px}
   .empty .big{font-size:26px;margin-bottom:6px}
   .curgroup-tag{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:700;background:var(--surface-2);border:1px solid var(--line);border-radius:7px;padding:2px 7px;color:var(--brand-deep);margin-left:8px}
+  .exp-detail{padding:14px 0;border-bottom:1px solid var(--line)}
+  .exp-detail:first-child{padding-top:4px}
+  .exp-detail:last-child{border-bottom:0;padding-bottom:0}
+  .exp-detail-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+  .exp-detail-head .t{font-weight:700;font-size:15px}
+  .exp-detail-head .amt{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700;font-size:14px;white-space:nowrap}
+  .dist{margin-top:9px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:6px 12px}
+  .dist-row{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--line)}
+  .dist-row:last-child{border-bottom:0}
+  .dist-name{font-weight:600;font-size:13.5px}
+  .dist-right{text-align:right;white-space:nowrap}
+  .dist-right .share{display:block;font-size:11px;color:var(--muted);font-weight:600}
+  .dist-right .tag{font-size:13px;font-weight:700}
 
   .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(10px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:.22s;z-index:60;box-shadow:var(--shadow);max-width:90%;text-align:center}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -176,6 +189,8 @@
     <div class="card"><h2>Pagos registrados</h2><div id="payment-list"></div></div>
   </section>
 
+  <section id="v-detalle" class="view"><div id="detalle-content"></div></section>
+
   <section id="v-ajustes" class="view">
     <div class="card">
       <h2>Unidades del viaje</h2>
@@ -197,7 +212,7 @@
       <button class="btn ghost" data-act="import">Importar datos (.json)</button>
       <input id="file-import" type="file" accept="application/json,.json" style="display:none">
       <button class="btn warn" data-act="reset">Borrar todo (para todos)</button>
-      <p class="subtle" style="margin-top:12px;text-align:center">Versión: <b>reparto-auto v4</b></p>
+      <p class="subtle" style="margin-top:12px;text-align:center">Versión: <b>reparto-auto v5</b></p>
     </div>
   </section>
 </main>
@@ -207,6 +222,7 @@
     <button data-view="saldos" class="active"><span class="ico">⚖️</span>Saldos</button>
     <button data-view="gastos"><span class="ico">🧾</span>Gastos</button>
     <button data-view="pagos"><span class="ico">💸</span>Pagos</button>
+    <button data-view="detalle"><span class="ico">📋</span>Detalle</button>
     <button data-view="ajustes"><span class="ico">⚙️</span>Ajustes</button>
   </div>
 </nav>
@@ -296,6 +312,39 @@ function settle(bal){
     if(deb[i].v<eps)i++;if(cred[j].v<eps)j++;
   }
   return tx;
+}
+
+/* ---------- render detalle (distribución por gasto) ---------- */
+function renderDetalle(){
+  const host=$("#detalle-content");
+  if(!state.expenses.length){
+    host.innerHTML=`<div class="card"><div class="empty"><div class="big">📋</div>No hay gastos para detallar todavía.<br>Agrega gastos y aquí verás cómo se reparte cada uno.</div></div>`;return;
+  }
+  let html="";
+  usedCurrencies().forEach(cur=>{
+    const exps=state.expenses.filter(e=>e.currency===cur);
+    if(!exps.length)return;
+    html+=`<div class="card"><div class="total-hero" style="margin-bottom:6px"><span class="label">Distribución por gasto <span class="curgroup-tag">${cur}</span></span></div>`;
+    exps.forEach(e=>{
+      const parts=(e.participants&&e.participants.length)?e.participants:state.units.map(u=>u.id);
+      const w=parts.reduce((s,id)=>s+unitSize(id),0)||1;
+      const paidBy={};(e.payers||[]).forEach(p=>{paidBy[p.unitId]=(paidBy[p.unitId]||0)+p.amount;});
+      const payTxt=(e.payers||[]).map(p=>`${escapeHtml(unitName(p.unitId))} ${money(p.amount,cur)}`).join(", ");
+      html+=`<div class="exp-detail"><div class="exp-detail-head"><span class="t">${escapeHtml(e.desc)}</span><span class="amt num">${money(e.amount,cur)}</span></div><div class="meta">Pagó ${payTxt} · ${e.date}</div><div class="dist">`;
+      parts.forEach(id=>{
+        const share=e.amount*unitSize(id)/w;
+        const net=(paidBy[id]||0)-share;
+        let tag,cls;
+        if(net<-0.5){tag=`debe ${money(Math.abs(net),cur)}`;cls="neg";}
+        else if(net>0.5){tag=`le deben ${money(net,cur)}`;cls="pos";}
+        else{tag="al día";cls="zero";}
+        html+=`<div class="dist-row"><span class="dist-name">${escapeHtml(unitName(id))}</span><span class="dist-right"><span class="share num">parte ${money(share,cur)}</span><span class="tag num ${cls}">${tag}</span></span></div>`;
+      });
+      html+=`</div></div>`;
+    });
+    html+=`</div>`;
+  });
+  host.innerHTML=html;
 }
 
 /* ---------- render saldos ---------- */
@@ -610,7 +659,7 @@ function attachListeners(){
   onValue(ref(db,BASE+"/units"),snap=>{
     const v=snap.val()||{};
     state.units=Object.entries(v).map(([id,u])=>({id,name:u.name,size:u.size,order:u.order??0})).sort((a,b)=>a.order-b.order);
-    reconcileDraft();fillUnitSelects();renderUnitEditor();renderPayers();renderParts();renderExpenses();renderPayments();renderSaldos();
+    reconcileDraft();fillUnitSelects();renderUnitEditor();renderPayers();renderParts();renderExpenses();renderPayments();renderSaldos();renderDetalle();
   });
   onValue(ref(db,BASE+"/meta"),snap=>{
     const m=snap.val()||{};
@@ -622,7 +671,7 @@ function attachListeners(){
   onValue(ref(db,BASE+"/expenses"),snap=>{
     const v=snap.val()||{};
     state.expenses=Object.entries(v).map(([id,e])=>({id,...e})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
-    renderExpenses();renderSaldos();
+    renderExpenses();renderSaldos();renderDetalle();
   });
   onValue(ref(db,BASE+"/payments"),snap=>{
     const v=snap.val()||{};
@@ -667,7 +716,7 @@ function initUI(){
   $("#g-amount").addEventListener("input",()=>{syncPayerAmounts();updatePaySum();});
   $("#g-cur").addEventListener("change",()=>{syncPayerAmounts();updatePaySum();});
   $("#file-import").addEventListener("change",e=>{if(e.target.files[0])importData(e.target.files[0]);e.target.value="";});
-  renderSaldos();
+  renderSaldos();renderDetalle();
 }
 
 async function start(){

@@ -136,7 +136,7 @@
 
   <section id="v-gastos" class="view">
     <div class="card">
-      <h2>Nuevo gasto</h2>
+      <h2 id="g-form-title">Nuevo gasto</h2>
       <label class="f" for="g-desc">Descripción</label>
       <input id="g-desc" placeholder="Cena en El Calafate, taxi, hotel…">
       <div class="row2">
@@ -151,7 +151,8 @@
       <label class="f">¿Entre quiénes se divide? <span class="miniact" data-act="part-all" style="float:right">todos / ninguno</span></label>
       <div id="g-parts" class="checks"></div>
       <div id="g-partsum" class="hint"></div>
-      <button class="btn" data-act="add-expense">Agregar gasto</button>
+      <button class="btn" id="g-submit" data-act="add-expense">Agregar gasto</button>
+      <button class="btn ghost" id="g-cancel" data-act="cancel-edit" style="display:none">Cancelar edición</button>
     </div>
     <div class="card"><h2>Gastos registrados</h2><div id="expense-list"></div></div>
   </section>
@@ -196,7 +197,7 @@
       <button class="btn ghost" data-act="import">Importar datos (.json)</button>
       <input id="file-import" type="file" accept="application/json,.json" style="display:none">
       <button class="btn warn" data-act="reset">Borrar todo (para todos)</button>
-      <p class="subtle" style="margin-top:12px;text-align:center">Versión: <b>reparto-auto v3</b></p>
+      <p class="subtle" style="margin-top:12px;text-align:center">Versión: <b>reparto-auto v4</b></p>
     </div>
   </section>
 </main>
@@ -242,6 +243,7 @@ const $ = s => document.querySelector(s);
 let db=null, ready=false;
 let state = { units:[], currencies:["ARS","CLP","USD","COP"], expenses:[], payments:[] };
 let draft = { payers:{}, parts:{}, payersManual:false };
+let editingExpenseId = null;
 
 /* ---------- utilidades ---------- */
 const uid = () => Math.random().toString(36).slice(2,9);
@@ -429,12 +431,53 @@ async function addExpense(){
   }
   const parts=Object.keys(draft.parts).filter(id=>draft.parts[id]);
   if(!parts.length){toast("Selecciona entre quiénes se divide");return;}
+  const wasEditing=!!editingExpenseId;
+  const payload={desc,amount,currency:cur,date,payers,participants:parts};
   try{
-    await push(ref(db,BASE+"/expenses"),{desc,amount,currency:cur,date,payers,participants:parts,createdAt:Date.now()});
+    if(wasEditing){
+      const orig=state.expenses.find(x=>x.id===editingExpenseId);
+      payload.createdAt=orig?orig.createdAt:Date.now();
+      payload.editedAt=Date.now();
+      await set(ref(db,BASE+"/expenses/"+editingExpenseId),payload);
+    }else{
+      payload.createdAt=Date.now();
+      await push(ref(db,BASE+"/expenses"),payload);
+    }
     $("#g-desc").value="";$("#g-amount").value="";
-    resetDraft();renderPayers();renderParts();
-    toast("Gasto agregado");
+    resetDraft();exitEditMode();renderPayers();renderParts();
+    toast(wasEditing?"Gasto actualizado":"Gasto agregado");
   }catch(e){toast("No se pudo guardar: "+e.message);}
+}
+function setExpenseFormMode(editing){
+  $("#g-form-title").textContent=editing?"Editar gasto":"Nuevo gasto";
+  $("#g-submit").textContent=editing?"Guardar cambios":"Agregar gasto";
+  $("#g-cancel").style.display=editing?"block":"none";
+}
+function exitEditMode(){ editingExpenseId=null; setExpenseFormMode(false); }
+function startEditExpense(id){
+  const e=state.expenses.find(x=>x.id===id);
+  if(!e)return;
+  editingExpenseId=id;
+  $("#g-desc").value=e.desc;
+  $("#g-amount").value=e.amount;
+  $("#g-cur").value=e.currency;
+  $("#g-date").value=e.date||today();
+  draft.payers={};(e.payers||[]).forEach(p=>{draft.payers[p.unitId]=String(p.amount);});
+  draft.payersManual=true; // conservar los montos tal como estaban
+  draft.parts={};
+  const parts=(e.participants&&e.participants.length)?e.participants:state.units.map(u=>u.id);
+  state.units.forEach(u=>{draft.parts[u.id]=parts.includes(u.id);});
+  setExpenseFormMode(true);
+  renderPayers();renderParts();
+  switchView("gastos");
+  window.scrollTo({top:0,behavior:"smooth"});
+  toast("Editando gasto");
+}
+function cancelEdit(){
+  exitEditMode();
+  $("#g-desc").value="";$("#g-amount").value="";
+  resetDraft();renderPayers();renderParts();
+  toast("Edición cancelada");
 }
 async function addPayment(){
   if(!requireReady())return;
@@ -449,7 +492,7 @@ async function addPayment(){
     toast("Pago registrado");
   }catch(e){toast("No se pudo guardar: "+e.message);}
 }
-async function delExpense(id){ try{await remove(ref(db,BASE+"/expenses/"+id));toast("Gasto eliminado");}catch(e){toast("Error: "+e.message);} }
+async function delExpense(id){ try{await remove(ref(db,BASE+"/expenses/"+id));if(id===editingExpenseId)cancelEdit();toast("Gasto eliminado");}catch(e){toast("Error: "+e.message);} }
 async function delPayment(id){ try{await remove(ref(db,BASE+"/payments/"+id));toast("Pago eliminado");}catch(e){toast("Error: "+e.message);} }
 
 /* ---------- listas ---------- */
@@ -459,8 +502,9 @@ function renderExpenses(){
   host.innerHTML=state.expenses.map(e=>{
     const payTxt=(e.payers||[]).map(p=>unitName(p.unitId)).join(", ");
     const nPart=(e.participants&&e.participants.length)||state.units.length;
-    return `<div class="item"><div class="body"><div class="t">${escapeHtml(e.desc)}</div><div class="meta">Pagó ${escapeHtml(payTxt)} · dividido entre ${nPart} · ${e.date}</div></div><div class="amt num">${money(e.amount,e.currency)}<span class="c">${e.currency}</span></div><button class="del" data-del-exp="${e.id}" aria-label="Eliminar">✕</button></div>`;
+    return `<div class="item"><div class="body"><div class="t">${escapeHtml(e.desc)}${e.editedAt?' <span style="color:var(--muted);font-weight:600;font-size:11px">· editado</span>':''}</div><div class="meta">Pagó ${escapeHtml(payTxt)} · dividido entre ${nPart} · ${e.date}</div></div><div class="amt num">${money(e.amount,e.currency)}<span class="c">${e.currency}</span></div><button class="del" data-edit-exp="${e.id}" aria-label="Editar">✎</button><button class="del" data-del-exp="${e.id}" aria-label="Eliminar">✕</button></div>`;
   }).join("");
+  host.querySelectorAll("[data-edit-exp]").forEach(b=>b.addEventListener("click",()=>startEditExpense(b.dataset.editExp)));
   host.querySelectorAll("[data-del-exp]").forEach(b=>b.addEventListener("click",()=>delExpense(b.dataset.delExp)));
 }
 function renderPayments(){
@@ -611,6 +655,7 @@ function initUI(){
     }
     else if(a==="part-all"){const allOn=state.units.every(u=>draft.parts[u.id]);state.units.forEach(u=>draft.parts[u.id]=!allOn);renderParts();}
     else if(a==="add-payment")addPayment();
+    else if(a==="cancel-edit")cancelEdit();
     else if(a==="add-unit")addUnitRow();
     else if(a==="save-units")saveUnits();
     else if(a==="save-cur")saveCurrencies();

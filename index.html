@@ -123,6 +123,21 @@
   .dist-right{text-align:right;white-space:nowrap}
   .dist-right .share{display:block;font-size:11px;color:var(--muted);font-weight:600}
   .dist-right .tag{font-size:13px;font-weight:700}
+  .seg-mini{display:flex;gap:5px;margin-top:6px}
+  .seg-mini button{flex:1;border:1.5px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 6px;font-family:var(--sans);font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer}
+  .seg-mini button.on{border-color:var(--brand);color:var(--brand);background:var(--surface-2)}
+  .attrib-item{padding:12px 0;border-bottom:1px solid var(--line)}
+  .attrib-item:last-child{border-bottom:0}
+  .attrib-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+  .attrib-head .t{font-weight:700;font-size:14px}
+  .attrib-head .amt{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700;font-size:13px;white-space:nowrap}
+  .attrib-item .meta{font-size:11.5px;color:var(--muted);margin-top:1px}
+  .share-line{display:grid;grid-template-columns:1fr 130px;gap:10px;align-items:center;margin-bottom:8px}
+  .share-line .nm{font-weight:600;font-size:14px}
+  .share-line input{padding:9px 10px;font-size:14px}
+  .pick-unit{display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:11px;padding:12px;cursor:pointer;font-weight:600;font-size:14px;background:var(--surface);width:100%;text-align:left;font-family:var(--sans);color:var(--ink)}
+  .pick-unit:active{border-color:var(--brand);background:var(--surface-2)}
+  .pj-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
 
   .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(10px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:.22s;z-index:60;box-shadow:var(--shadow);max-width:90%;text-align:center}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -189,6 +204,73 @@
     <div class="card"><h2>Pagos registrados</h2><div id="payment-list"></div></div>
   </section>
 
+  <section id="v-pareja" class="view">
+    <div id="pj-picker" class="card" style="display:none">
+      <h2>¿Cuál es tu unidad?</h2>
+      <p class="subtle" style="margin:0 0 12px">Elige tu pareja para llevar las cuentas internas entre ustedes dos. Queda recordado en este dispositivo.</p>
+      <div id="pj-picker-list" class="checks"></div>
+    </div>
+
+    <div id="pj-main" style="display:none">
+      <div class="card">
+        <div class="pj-head">
+          <h2 style="margin:0" id="pj-title">Cuentas internas</h2>
+          <button class="miniact" data-act="pj-change">cambiar</button>
+        </div>
+        <div id="pj-members-setup" style="display:none">
+          <p class="subtle" style="margin:12px 0 0">Ponle nombre a cada integrante para poder llevar las cuentas.</p>
+          <div id="pj-members-inputs"></div>
+          <button class="btn" data-act="pj-save-members">Guardar integrantes</button>
+        </div>
+        <div id="pj-balance"></div>
+      </div>
+
+      <div class="card" id="pj-group-card">
+        <h2>Del grupo · quién puso la plata</h2>
+        <p class="subtle" style="margin:0 0 6px">Movimientos del grupo donde participó tu pareja. Marca quién de los dos puso o recibió el dinero.</p>
+        <div id="pj-attrib-list"></div>
+      </div>
+
+      <div class="card">
+        <h2>Gasto propio de la pareja</h2>
+        <p class="subtle" style="margin:0 0 10px">Gastos de ustedes dos que no entran en las cuentas del grupo.</p>
+        <label class="f" for="pj-desc">Descripción</label>
+        <input id="pj-desc" placeholder="Souvenirs, cena aparte…">
+        <div class="row2">
+          <div><label class="f" for="pj-amount">Monto</label><input id="pj-amount" class="num-in" inputmode="decimal" placeholder="0"></div>
+          <div><label class="f" for="pj-cur">Moneda</label><select id="pj-cur"></select></div>
+        </div>
+        <label class="f" for="pj-date">Fecha</label>
+        <input id="pj-date" type="date">
+        <label class="f">¿Quién pagó?</label>
+        <div id="pj-payer-seg" class="seg-mini"></div>
+        <label class="f">Reparto <span class="miniact" data-act="pj-split-equal" style="float:right">partes iguales</span></label>
+        <div id="pj-shares"></div>
+        <div id="pj-sharesum" class="hint"></div>
+        <button class="btn" data-act="pj-add-expense">Agregar gasto propio</button>
+      </div>
+
+      <div class="card"><h2>Gastos propios registrados</h2><div id="pj-exp-list"></div></div>
+
+      <div class="card">
+        <h2>Pago entre ustedes</h2>
+        <div class="row2">
+          <div><label class="f" for="pj-p-from">Paga</label><select id="pj-p-from"></select></div>
+          <div><label class="f" for="pj-p-to">Recibe</label><select id="pj-p-to"></select></div>
+        </div>
+        <div class="row-amt">
+          <div><label class="f" for="pj-p-amount">Monto</label><input id="pj-p-amount" class="num-in" inputmode="decimal" placeholder="0"></div>
+          <div><label class="f" for="pj-p-cur">Moneda</label><select id="pj-p-cur"></select></div>
+        </div>
+        <label class="f" for="pj-p-note">Nota (opcional)</label>
+        <input id="pj-p-note" placeholder="Efectivo, transferencia…">
+        <button class="btn" data-act="pj-add-payment">Registrar pago interno</button>
+      </div>
+
+      <div class="card"><h2>Pagos internos</h2><div id="pj-pay-list"></div></div>
+    </div>
+  </section>
+
   <section id="v-detalle" class="view"><div id="detalle-content"></div></section>
 
   <section id="v-ajustes" class="view">
@@ -212,7 +294,7 @@
       <button class="btn ghost" data-act="import">Importar datos (.json)</button>
       <input id="file-import" type="file" accept="application/json,.json" style="display:none">
       <button class="btn warn" data-act="reset">Borrar todo (para todos)</button>
-      <p class="subtle" style="margin-top:12px;text-align:center">Versión: <b>reparto-auto v5</b></p>
+      <p class="subtle" style="margin-top:12px;text-align:center">Versión: <b>reparto-auto v6</b></p>
     </div>
   </section>
 </main>
@@ -222,6 +304,7 @@
     <button data-view="saldos" class="active"><span class="ico">⚖️</span>Saldos</button>
     <button data-view="gastos"><span class="ico">🧾</span>Gastos</button>
     <button data-view="pagos"><span class="ico">💸</span>Pagos</button>
+    <button data-view="pareja"><span class="ico">👫</span>Pareja</button>
     <button data-view="detalle"><span class="ico">📋</span>Detalle</button>
     <button data-view="ajustes"><span class="ico">⚙️</span>Ajustes</button>
   </div>
@@ -645,6 +728,311 @@ async function seedDefaults(){
   await set(ref(db,BASE+"/meta/currencies"),"ARS,CLP,USD,COP");
 }
 
+/* ================= CUENTAS DE PAREJA ================= */
+const MYUNIT_KEY="cuentas-viaje-myunit";
+let myUnitId=null;
+let coupleUnsub=[];
+let couple={members:[],attrib:{},expenses:[],payments:[]};
+let cDraft={payer:"equal",shares:{},sharesManual:false};
+
+const memberName=id=>{const m=couple.members.find(x=>x.id===id);return m?m.name:"—";};
+function loadMyUnit(){try{myUnitId=localStorage.getItem(MYUNIT_KEY)||null;}catch(e){myUnitId=null;}}
+function saveMyUnit(id){try{if(id)localStorage.setItem(MYUNIT_KEY,id);else localStorage.removeItem(MYUNIT_KEY);}catch(e){}}
+
+function detachCouple(){coupleUnsub.forEach(f=>{try{f();}catch(e){}});coupleUnsub=[];}
+function attachCouple(){
+  detachCouple();
+  couple={members:[],attrib:{},expenses:[],payments:[]};
+  if(!myUnitId||!db){renderPareja();return;}
+  const b=BASE+"/couples/"+myUnitId;
+  coupleUnsub.push(onValue(ref(db,b+"/members"),s=>{
+    const v=s.val()||{};
+    couple.members=Object.entries(v).map(([id,m])=>({id,name:m.name,order:m.order??0})).sort((a,b2)=>a.order-b2.order);
+    reconcileCDraft();renderPareja();
+  }));
+  coupleUnsub.push(onValue(ref(db,b+"/attrib"),s=>{couple.attrib=s.val()||{};renderPareja();}));
+  coupleUnsub.push(onValue(ref(db,b+"/expenses"),s=>{
+    const v=s.val()||{};
+    couple.expenses=Object.entries(v).map(([id,e])=>({id,...e})).sort((a,b2)=>(b2.createdAt||0)-(a.createdAt||0));
+    renderPareja();
+  }));
+  coupleUnsub.push(onValue(ref(db,b+"/payments"),s=>{
+    const v=s.val()||{};
+    couple.payments=Object.entries(v).map(([id,p])=>({id,...p})).sort((a,b2)=>(b2.createdAt||0)-(a.createdAt||0));
+    renderPareja();
+  }));
+}
+
+/* --- cálculo interno --- */
+function attribFor(refId,total){
+  const by=couple.attrib[refId];
+  const out={};const n=couple.members.length||1;
+  if(by&&couple.members.some(m=>m.id===by)) couple.members.forEach(m=>out[m.id]=(m.id===by?total:0));
+  else couple.members.forEach(m=>out[m.id]=total/n);
+  return out;
+}
+function coupleGroupRows(){
+  const rows=[];
+  if(!myUnitId)return rows;
+  state.expenses.forEach(e=>{
+    const paid=(e.payers||[]).filter(p=>p.unitId===myUnitId).reduce((s,p)=>s+p.amount,0);
+    if(paid>0.0001)rows.push({refId:"e_"+e.id,label:e.desc,date:e.date,amount:paid,cur:e.currency,dir:"out",kind:"Gasto del grupo"});
+  });
+  state.payments.forEach(p=>{
+    if(p.from===myUnitId)rows.push({refId:"p_"+p.id,label:"Pago a "+unitName(p.to),date:p.date,amount:p.amount,cur:p.currency,dir:"out",kind:"Pago del grupo"});
+    else if(p.to===myUnitId)rows.push({refId:"p_"+p.id,label:"Cobro de "+unitName(p.from),date:p.date,amount:p.amount,cur:p.currency,dir:"in",kind:"Cobro del grupo"});
+  });
+  return rows;
+}
+function coupleCurrencies(){
+  const s=new Set();
+  if(myUnitId){
+    state.expenses.forEach(e=>{
+      const parts=(e.participants&&e.participants.length)?e.participants:state.units.map(u=>u.id);
+      const paid=(e.payers||[]).some(p=>p.unitId===myUnitId);
+      if(parts.includes(myUnitId)||paid)s.add(e.currency);
+    });
+    state.payments.forEach(p=>{if(p.from===myUnitId||p.to===myUnitId)s.add(p.currency);});
+  }
+  couple.expenses.forEach(e=>s.add(e.currency));
+  couple.payments.forEach(p=>s.add(p.currency));
+  return [...s];
+}
+function coupleBalances(cur){
+  const b={};couple.members.forEach(m=>b[m.id]=0);
+  const n=couple.members.length||1;
+  if(myUnitId){
+    state.expenses.filter(e=>e.currency===cur).forEach(e=>{
+      const parts=(e.participants&&e.participants.length)?e.participants:state.units.map(u=>u.id);
+      if(parts.includes(myUnitId)){
+        const w=parts.reduce((s,id)=>s+unitSize(id),0)||1;
+        const share=e.amount*unitSize(myUnitId)/w;
+        couple.members.forEach(m=>b[m.id]-=share/n);
+      }
+      const paid=(e.payers||[]).filter(p=>p.unitId===myUnitId).reduce((s,p)=>s+p.amount,0);
+      if(paid>0.0001){const a=attribFor("e_"+e.id,paid);couple.members.forEach(m=>b[m.id]+=a[m.id]||0);}
+    });
+    state.payments.filter(p=>p.currency===cur).forEach(p=>{
+      if(p.from===myUnitId){const a=attribFor("p_"+p.id,p.amount);couple.members.forEach(m=>b[m.id]+=a[m.id]||0);}
+      else if(p.to===myUnitId){const a=attribFor("p_"+p.id,p.amount);couple.members.forEach(m=>b[m.id]-=a[m.id]||0);}
+    });
+  }
+  couple.expenses.filter(e=>e.currency===cur).forEach(e=>{
+    Object.entries(e.payers||{}).forEach(([mid,amt])=>{if(b[mid]!==undefined)b[mid]+=Number(amt)||0;});
+    Object.entries(e.shares||{}).forEach(([mid,amt])=>{if(b[mid]!==undefined)b[mid]-=Number(amt)||0;});
+  });
+  couple.payments.filter(p=>p.currency===cur).forEach(p=>{
+    if(b[p.from]!==undefined)b[p.from]+=p.amount;
+    if(b[p.to]!==undefined)b[p.to]-=p.amount;
+  });
+  return b;
+}
+
+/* --- render --- */
+function renderPareja(){
+  const unitsOK=state.units.filter(u=>Number(u.size)>1);
+  if(myUnitId&&!unitObj(myUnitId)){myUnitId=null;saveMyUnit(null);}
+  if(!myUnitId){
+    $("#pj-picker").style.display="block";$("#pj-main").style.display="none";
+    const host=$("#pj-picker-list");
+    host.innerHTML=unitsOK.length
+      ? unitsOK.map(u=>`<button class="pick-unit" data-pick-unit="${u.id}">${escapeHtml(u.name)} · ${u.size} personas</button>`).join("")
+      : `<div class="empty">No hay unidades de 2 o más personas configuradas.</div>`;
+    host.querySelectorAll("[data-pick-unit]").forEach(b=>b.addEventListener("click",()=>{
+      myUnitId=b.dataset.pickUnit;saveMyUnit(myUnitId);attachCouple();renderPareja();
+    }));
+    return;
+  }
+  $("#pj-picker").style.display="none";$("#pj-main").style.display="block";
+  $("#pj-title").textContent="Cuentas de "+unitName(myUnitId);
+  const needSetup=couple.members.length<2;
+  $("#pj-members-setup").style.display=needSetup?"block":"none";
+  $("#pj-group-card").style.display=needSetup?"none":"block";
+  if(needSetup)renderMembersSetup();
+  document.querySelectorAll("#pj-main .card").forEach((c,i)=>{if(i>1)c.style.display=needSetup?"none":"block";});
+  if(needSetup){$("#pj-balance").innerHTML="";return;}
+  fillCoupleSelects();
+  renderCoupleBalance();
+  renderCoupleAttrib();
+  renderCouplePayerSeg();
+  renderCoupleShares();
+  renderCoupleExpenses();
+  renderCouplePayments();
+}
+function renderMembersSetup(){
+  const size=Math.max(2,Number(unitObj(myUnitId)?.size)||2);
+  const host=$("#pj-members-inputs");
+  if(host.dataset.built===myUnitId+"-"+size)return;
+  host.dataset.built=myUnitId+"-"+size;
+  let h="";
+  for(let i=0;i<size;i++)h+=`<label class="f" for="pj-m${i}">Integrante ${i+1}</label><input id="pj-m${i}" placeholder="Nombre">`;
+  host.innerHTML=h;
+}
+async function saveMembers(){
+  if(!requireReady())return;
+  const size=Math.max(2,Number(unitObj(myUnitId)?.size)||2);
+  const obj={};let ok=true;
+  for(let i=0;i<size;i++){
+    const v=$("#pj-m"+i).value.trim();
+    if(!v){ok=false;break;}
+    obj[uid()]={name:v,order:i};
+  }
+  if(!ok){toast("Escribe el nombre de cada integrante");return;}
+  try{await set(ref(db,BASE+"/couples/"+myUnitId+"/members"),obj);toast("Integrantes guardados");}
+  catch(e){toast("Error: "+e.message);}
+}
+function fillCoupleSelects(){
+  const opts=state.currencies.map(c=>`<option value="${c}">${c}</option>`).join("");
+  const c1=$("#pj-cur"),c2=$("#pj-p-cur");
+  const v1=c1.value,v2=c2.value;
+  c1.innerHTML=opts;c2.innerHTML=opts;
+  if(state.currencies.includes(v1))c1.value=v1;
+  if(state.currencies.includes(v2))c2.value=v2;
+  const mo=couple.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join("");
+  const f=$("#pj-p-from"),t=$("#pj-p-to");
+  const fv=f.value,tv=t.value;
+  f.innerHTML=mo;t.innerHTML=mo;
+  if(couple.members.some(m=>m.id===fv))f.value=fv;
+  if(couple.members.some(m=>m.id===tv))t.value=tv;else if(couple.members[1])t.value=couple.members[1].id;
+}
+function renderCoupleBalance(){
+  const host=$("#pj-balance");
+  const curs=coupleCurrencies();
+  if(!curs.length){host.innerHTML=`<div class="empty">Aún no hay movimientos para estas cuentas.</div>`;return;}
+  let html="";
+  curs.forEach(cur=>{
+    const bal=coupleBalances(cur);const tx=settle(bal);
+    html+=`<div class="divider"></div><div class="total-hero" style="margin-bottom:8px"><span class="label">Saldo interno <span class="curgroup-tag">${cur}</span></span></div>`;
+    couple.members.forEach(m=>{
+      const v=bal[m.id]||0;const cls=v>0.5?"pos":(v<-0.5?"neg":"zero");const sign=v>0.5?"+":"";
+      const txt=Math.abs(v)<0.5?"al día":`${sign}${money(v,cur)}`;
+      html+=`<div class="bal-row"><span class="bal-name">${escapeHtml(m.name)}</span><span class="bal-amt num ${cls}">${txt}</span></div>`;
+    });
+    html+=`<div style="margin-top:10px">`;
+    if(!tx.length)html+=`<div class="settled">✓ Están a mano en ${cur}</div>`;
+    else tx.forEach(t=>{
+      html+=`<div class="tx"><span class="who"><span class="from">${escapeHtml(memberName(t.from))}</span><span class="arrow">→</span><span class="to">${escapeHtml(memberName(t.to))}</span></span><span class="amt num">${money(t.amount,cur)}</span></div>`;
+    });
+    html+=`</div>`;
+  });
+  host.innerHTML=html;
+}
+function renderCoupleAttrib(){
+  const host=$("#pj-attrib-list");
+  const rows=coupleGroupRows();
+  if(!rows.length){host.innerHTML=`<div class="empty">Tu pareja aún no ha puesto ni recibido dinero en el grupo.</div>`;return;}
+  const opts=[...couple.members.map(m=>({v:m.id,l:m.name})),{v:"equal",l:"Mitad"}];
+  host.innerHTML=rows.map(r=>{
+    const sel=couple.attrib[r.refId]||"equal";
+    return `<div class="attrib-item"><div class="attrib-head"><span class="t">${escapeHtml(r.label)}</span><span class="amt num">${r.dir==="in"?"recibió ":"puso "}${money(r.amount,r.cur)}</span></div><div class="meta">${escapeHtml(r.kind)} · ${r.date||""} · ${r.cur}</div><div class="seg-mini">${opts.map(o=>`<button data-attrib="${r.refId}" data-val="${o.v}" class="${sel===o.v?"on":""}">${escapeHtml(o.l)}</button>`).join("")}</div></div>`;
+  }).join("");
+  host.querySelectorAll("[data-attrib]").forEach(b=>b.addEventListener("click",()=>setAttrib(b.dataset.attrib,b.dataset.val)));
+}
+async function setAttrib(refId,val){
+  if(!requireReady())return;
+  try{await set(ref(db,BASE+"/couples/"+myUnitId+"/attrib/"+refId),val);}
+  catch(e){toast("Error: "+e.message);}
+}
+function renderCouplePayerSeg(){
+  const host=$("#pj-payer-seg");
+  const opts=[...couple.members.map(m=>({v:m.id,l:m.name})),{v:"equal",l:"Mitad"}];
+  host.innerHTML=opts.map(o=>`<button data-cpayer="${o.v}" class="${cDraft.payer===o.v?"on":""}">${escapeHtml(o.l)}</button>`).join("");
+  host.querySelectorAll("[data-cpayer]").forEach(b=>b.addEventListener("click",()=>{cDraft.payer=b.dataset.cpayer;renderCouplePayerSeg();}));
+}
+function reconcileCDraft(){
+  couple.members.forEach(m=>{if(cDraft.shares[m.id]===undefined)cDraft.shares[m.id]="";});
+  Object.keys(cDraft.shares).forEach(id=>{if(!couple.members.some(m=>m.id===id))delete cDraft.shares[id];});
+  if(cDraft.payer!=="equal"&&!couple.members.some(m=>m.id===cDraft.payer))cDraft.payer="equal";
+}
+function syncCoupleShares(){
+  if(cDraft.sharesManual)return;
+  const total=parseSmart($("#pj-amount").value);
+  const cur=$("#pj-cur").value;
+  const n=couple.members.length||1;
+  const parts=total>0?splitEqual(total,n,cur):couple.members.map(()=>"");
+  couple.members.forEach((m,i)=>{
+    cDraft.shares[m.id]=String(parts[i]);
+    const inp=$(`[data-cshare="${m.id}"]`);
+    if(inp&&document.activeElement!==inp)inp.value=parts[i];
+  });
+}
+function renderCoupleShares(){
+  const host=$("#pj-shares");
+  host.innerHTML=couple.members.map(m=>`<div class="share-line"><span class="nm">${escapeHtml(m.name)}</span><input class="num-in" inputmode="decimal" data-cshare="${m.id}" value="${cDraft.shares[m.id]||""}" placeholder="0"></div>`).join("");
+  host.querySelectorAll("[data-cshare]").forEach(inp=>inp.addEventListener("input",()=>{
+    cDraft.shares[inp.dataset.cshare]=inp.value;cDraft.sharesManual=true;updateShareSum();
+  }));
+  syncCoupleShares();updateShareSum();
+}
+function updateShareSum(){
+  const el=$("#pj-sharesum");
+  const total=parseSmart($("#pj-amount").value);
+  const cur=$("#pj-cur").value;
+  const sum=couple.members.reduce((s,m)=>s+parseSmart(cDraft.shares[m.id]),0);
+  if(total>0&&Math.abs(sum-total)>0.5){el.className="hint err";el.textContent=`El reparto suma ${money(sum,cur)} y el monto es ${money(total,cur)}. Ajústalo o toca "partes iguales".`;}
+  else{el.className="hint ok";el.textContent=`Reparto: ${money(sum,cur)} ✓`;}
+}
+async function addCoupleExpense(){
+  if(!requireReady())return;
+  const desc=$("#pj-desc").value.trim();
+  const amount=parseSmart($("#pj-amount").value);
+  const cur=$("#pj-cur").value;const date=$("#pj-date").value||today();
+  if(!desc){toast("Ponle una descripción");return;}
+  if(!(amount>0)){toast("El monto debe ser mayor a 0");return;}
+  const n=couple.members.length||1;
+  const payers={};
+  if(cDraft.payer==="equal"){const p=splitEqual(amount,n,cur);couple.members.forEach((m,i)=>payers[m.id]=p[i]);}
+  else payers[cDraft.payer]=amount;
+  const shares={};let ssum=0;
+  couple.members.forEach(m=>{const v=parseSmart(cDraft.shares[m.id]);shares[m.id]=v;ssum+=v;});
+  if(Math.abs(ssum-amount)>0.5){toast("El reparto no coincide con el monto");return;}
+  try{
+    await push(ref(db,BASE+"/couples/"+myUnitId+"/expenses"),{desc,amount,currency:cur,date,payers,shares,createdAt:Date.now()});
+    $("#pj-desc").value="";$("#pj-amount").value="";
+    cDraft.sharesManual=false;cDraft.payer="equal";
+    renderCouplePayerSeg();renderCoupleShares();
+    toast("Gasto propio agregado");
+  }catch(e){toast("No se pudo guardar: "+e.message);}
+}
+function renderCoupleExpenses(){
+  const host=$("#pj-exp-list");
+  if(!couple.expenses.length){host.innerHTML=`<div class="empty">Sin gastos propios todavía.</div>`;return;}
+  host.innerHTML=couple.expenses.map(e=>{
+    const pay=Object.entries(e.payers||{}).filter(([,v])=>Number(v)>0.0001).map(([mid,v])=>`${memberName(mid)} ${money(Number(v),e.currency)}`).join(", ");
+    return `<div class="item"><div class="body"><div class="t">${escapeHtml(e.desc)}</div><div class="meta">Pagó ${escapeHtml(pay)} · ${e.date}</div></div><div class="amt num">${money(e.amount,e.currency)}<span class="c">${e.currency}</span></div><button class="del" data-del-cexp="${e.id}" aria-label="Eliminar">✕</button></div>`;
+  }).join("");
+  host.querySelectorAll("[data-del-cexp]").forEach(b=>b.addEventListener("click",async()=>{
+    try{await remove(ref(db,BASE+"/couples/"+myUnitId+"/expenses/"+b.dataset.delCexp));toast("Gasto eliminado");}catch(e){toast("Error: "+e.message);}
+  }));
+}
+async function addCouplePayment(){
+  if(!requireReady())return;
+  const from=$("#pj-p-from").value,to=$("#pj-p-to").value;
+  const amount=parseSmart($("#pj-p-amount").value);
+  const cur=$("#pj-p-cur").value,note=$("#pj-p-note").value.trim();
+  if(from===to){toast("Deben ser integrantes distintos");return;}
+  if(!(amount>0)){toast("El monto debe ser mayor a 0");return;}
+  try{
+    await push(ref(db,BASE+"/couples/"+myUnitId+"/payments"),{from,to,amount,currency:cur,date:today(),note,createdAt:Date.now()});
+    $("#pj-p-amount").value="";$("#pj-p-note").value="";
+    toast("Pago interno registrado");
+  }catch(e){toast("No se pudo guardar: "+e.message);}
+}
+function renderCouplePayments(){
+  const host=$("#pj-pay-list");
+  if(!couple.payments.length){host.innerHTML=`<div class="empty">Sin pagos internos todavía.</div>`;return;}
+  host.innerHTML=couple.payments.map(p=>`<div class="item"><div class="body"><div class="t">${escapeHtml(memberName(p.from))} → ${escapeHtml(memberName(p.to))}</div><div class="meta">${p.note?escapeHtml(p.note)+" · ":""}${p.date}</div></div><div class="amt num">${money(p.amount,p.currency)}<span class="c">${p.currency}</span></div><button class="del" data-del-cpay="${p.id}" aria-label="Eliminar">✕</button></div>`).join("");
+  host.querySelectorAll("[data-del-cpay]").forEach(b=>b.addEventListener("click",async()=>{
+    try{await remove(ref(db,BASE+"/couples/"+myUnitId+"/payments/"+b.dataset.delCpay));toast("Pago eliminado");}catch(e){toast("Error: "+e.message);}
+  }));
+}
+function changeMyUnit(){
+  myUnitId=null;saveMyUnit(null);detachCouple();
+  couple={members:[],attrib:{},expenses:[],payments:[]};
+  $("#pj-members-inputs").dataset.built="";
+  renderPareja();
+}
+
 /* ---------- navegación ---------- */
 function switchView(name){
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
@@ -659,24 +1047,24 @@ function attachListeners(){
   onValue(ref(db,BASE+"/units"),snap=>{
     const v=snap.val()||{};
     state.units=Object.entries(v).map(([id,u])=>({id,name:u.name,size:u.size,order:u.order??0})).sort((a,b)=>a.order-b.order);
-    reconcileDraft();fillUnitSelects();renderUnitEditor();renderPayers();renderParts();renderExpenses();renderPayments();renderSaldos();renderDetalle();
+    reconcileDraft();fillUnitSelects();renderUnitEditor();renderPayers();renderParts();renderExpenses();renderPayments();renderSaldos();renderDetalle();renderPareja();
   });
   onValue(ref(db,BASE+"/meta"),snap=>{
     const m=snap.val()||{};
     const list=(m.currencies||"ARS,CLP,USD,COP").split(",").map(s=>s.trim()).filter(Boolean);
     state.currencies=list.length?list:["ARS","CLP","USD","COP"];
     $("#cur-list").value=state.currencies.join(", ");
-    fillCurrencySelects();
+    fillCurrencySelects();renderPareja();
   });
   onValue(ref(db,BASE+"/expenses"),snap=>{
     const v=snap.val()||{};
     state.expenses=Object.entries(v).map(([id,e])=>({id,...e})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
-    renderExpenses();renderSaldos();renderDetalle();
+    renderExpenses();renderSaldos();renderDetalle();renderPareja();
   });
   onValue(ref(db,BASE+"/payments"),snap=>{
     const v=snap.val()||{};
     state.payments=Object.entries(v).map(([id,p])=>({id,...p})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
-    renderPayments();renderSaldos();
+    renderPayments();renderSaldos();renderPareja();
   });
 }
 
@@ -704,6 +1092,11 @@ function initUI(){
     }
     else if(a==="part-all"){const allOn=state.units.every(u=>draft.parts[u.id]);state.units.forEach(u=>draft.parts[u.id]=!allOn);renderParts();}
     else if(a==="add-payment")addPayment();
+    else if(a==="pj-change")changeMyUnit();
+    else if(a==="pj-save-members")saveMembers();
+    else if(a==="pj-split-equal"){cDraft.sharesManual=false;renderCoupleShares();}
+    else if(a==="pj-add-expense")addCoupleExpense();
+    else if(a==="pj-add-payment")addCouplePayment();
     else if(a==="cancel-edit")cancelEdit();
     else if(a==="add-unit")addUnitRow();
     else if(a==="save-units")saveUnits();
@@ -716,7 +1109,11 @@ function initUI(){
   $("#g-amount").addEventListener("input",()=>{syncPayerAmounts();updatePaySum();});
   $("#g-cur").addEventListener("change",()=>{syncPayerAmounts();updatePaySum();});
   $("#file-import").addEventListener("change",e=>{if(e.target.files[0])importData(e.target.files[0]);e.target.value="";});
-  renderSaldos();renderDetalle();
+  loadMyUnit();
+  $("#pj-date").value=today();
+  $("#pj-amount").addEventListener("input",()=>{syncCoupleShares();updateShareSum();});
+  $("#pj-cur").addEventListener("change",()=>{syncCoupleShares();updateShareSum();});
+  renderSaldos();renderDetalle();renderPareja();
 }
 
 async function start(){
@@ -734,6 +1131,7 @@ async function start(){
       const snap=await get(ref(db,BASE+"/units"));
       if(!snap.exists()) await seedDefaults();
       attachListeners();
+      attachCouple();
       ready=true;
       conn("on","Sincronizado en vivo");
     });

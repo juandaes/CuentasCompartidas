@@ -138,6 +138,7 @@
   .pick-unit{display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:11px;padding:12px;cursor:pointer;font-weight:600;font-size:14px;background:var(--surface);width:100%;text-align:left;font-family:var(--sans);color:var(--ink)}
   .pick-unit:active{border-color:var(--brand);background:var(--surface-2)}
   .pj-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .tot-break{display:block;font-size:11px;color:var(--muted);font-weight:600;margin-top:1px}
 
   .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(10px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:.22s;z-index:60;box-shadow:var(--shadow);max-width:90%;text-align:center}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -223,6 +224,7 @@
           <button class="btn" data-act="pj-save-members">Guardar integrantes</button>
         </div>
         <div id="pj-balance"></div>
+        <div id="pj-totals"></div>
       </div>
 
       <div class="card" id="pj-group-card">
@@ -294,7 +296,7 @@
       <button class="btn ghost" data-act="import">Importar datos (.json)</button>
       <input id="file-import" type="file" accept="application/json,.json" style="display:none">
       <button class="btn warn" data-act="reset">Borrar todo (para todos)</button>
-      <p class="subtle" style="margin-top:12px;text-align:center">Versión: <b>reparto-auto v6</b></p>
+      <p class="subtle" style="margin-top:12px;text-align:center">Versión: <b>reparto-auto v7</b></p>
     </div>
   </section>
 </main>
@@ -853,6 +855,7 @@ function renderPareja(){
   if(needSetup){$("#pj-balance").innerHTML="";return;}
   fillCoupleSelects();
   renderCoupleBalance();
+  renderCoupleTotals();
   renderCoupleAttrib();
   renderCouplePayerSeg();
   renderCoupleShares();
@@ -1025,6 +1028,24 @@ function renderCouplePayments(){
   host.querySelectorAll("[data-del-cpay]").forEach(b=>b.addEventListener("click",async()=>{
     try{await remove(ref(db,BASE+"/couples/"+myUnitId+"/payments/"+b.dataset.delCpay));toast("Pago eliminado");}catch(e){toast("Error: "+e.message);}
   }));
+}
+function renderCoupleTotals(){
+  const host=$("#pj-totals");
+  const curs=coupleCurrencies();
+  let html="";
+  curs.forEach(cur=>{
+    let grupo=0;
+    if(myUnitId)state.expenses.filter(e=>e.currency===cur).forEach(e=>{
+      const parts=(e.participants&&e.participants.length)?e.participants:state.units.map(u=>u.id);
+      if(parts.includes(myUnitId)){const w=parts.reduce((s,id)=>s+unitSize(id),0)||1;grupo+=e.amount*unitSize(myUnitId)/w;}
+    });
+    const propios=couple.expenses.filter(e=>e.currency===cur).reduce((s,e)=>s+e.amount,0);
+    const total=grupo+propios;
+    if(total<0.5)return;
+    html+=`<div class="bal-row"><span class="bal-name">Total gastado <span class="curgroup-tag">${cur}</span><span class="tot-break">del grupo ${money(grupo,cur)} · propios ${money(propios,cur)}</span></span><span class="bal-amt num">${money(total,cur)}</span></div>`;
+  });
+  if(!html){host.innerHTML="";return;}
+  host.innerHTML=`<div class="divider"></div><div class="total-hero" style="margin-bottom:6px"><span class="label">Totales de la pareja</span></div>${html}<p class="subtle" style="margin-top:8px">Informativo: la parte de tu pareja en los gastos del grupo más sus gastos propios.</p>`;
 }
 function changeMyUnit(){
   myUnitId=null;saveMyUnit(null);detachCouple();

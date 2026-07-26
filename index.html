@@ -296,7 +296,7 @@
       <button class="btn ghost" data-act="import">Importar datos (.json)</button>
       <input id="file-import" type="file" accept="application/json,.json" style="display:none">
       <button class="btn warn" data-act="reset">Borrar todo (para todos)</button>
-      <p class="subtle" style="margin-top:12px;text-align:center">Versión: <b>reparto-auto v7</b></p>
+      <p class="subtle" style="margin-top:12px;text-align:center">Versión: <b>reparto-auto v8</b></p>
     </div>
   </section>
 </main>
@@ -778,12 +778,20 @@ function coupleGroupRows(){
   if(!myUnitId)return rows;
   state.expenses.forEach(e=>{
     const paid=(e.payers||[]).filter(p=>p.unitId===myUnitId).reduce((s,p)=>s+p.amount,0);
-    if(paid>0.0001)rows.push({refId:"e_"+e.id,label:e.desc,date:e.date,amount:paid,cur:e.currency,dir:"out",kind:"Gasto del grupo"});
+    const parts=(e.participants&&e.participants.length)?e.participants:state.units.map(u=>u.id);
+    const participates=parts.includes(myUnitId);
+    if(paid>0.0001){
+      rows.push({refId:"e_"+e.id,label:e.desc,date:e.date,amount:paid,cur:e.currency,dir:"out",kind:"Gasto del grupo"});
+    }else if(participates){
+      const w=parts.reduce((s,id)=>s+unitSize(id),0)||1;
+      rows.push({refId:"e_"+e.id,label:e.desc,date:e.date,cur:e.currency,kind:"Gasto del grupo",info:true,share:e.amount*unitSize(myUnitId)/w});
+    }
   });
   state.payments.forEach(p=>{
     if(p.from===myUnitId)rows.push({refId:"p_"+p.id,label:"Pago a "+unitName(p.to),date:p.date,amount:p.amount,cur:p.currency,dir:"out",kind:"Pago del grupo"});
     else if(p.to===myUnitId)rows.push({refId:"p_"+p.id,label:"Cobro de "+unitName(p.from),date:p.date,amount:p.amount,cur:p.currency,dir:"in",kind:"Cobro del grupo"});
   });
+  rows.sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
   return rows;
 }
 function coupleCurrencies(){
@@ -923,9 +931,12 @@ function renderCoupleBalance(){
 function renderCoupleAttrib(){
   const host=$("#pj-attrib-list");
   const rows=coupleGroupRows();
-  if(!rows.length){host.innerHTML=`<div class="empty">Tu pareja aún no ha puesto ni recibido dinero en el grupo.</div>`;return;}
+  if(!rows.length){host.innerHTML=`<div class="empty">Tu pareja aún no participa en gastos del grupo.</div>`;return;}
   const opts=[...couple.members.map(m=>({v:m.id,l:m.name})),{v:"equal",l:"Mitad"}];
   host.innerHTML=rows.map(r=>{
+    if(r.info){
+      return `<div class="attrib-item"><div class="attrib-head"><span class="t">${escapeHtml(r.label)}</span><span class="amt num" style="color:var(--muted)">tu parte ${money(r.share,r.cur)}</span></div><div class="meta">${escapeHtml(r.kind)} · ${r.date||""} · ${r.cur}</div><div class="meta" style="color:var(--muted)">Tu pareja no puso dinero · se divide 50/50 automáticamente</div></div>`;
+    }
     const sel=couple.attrib[r.refId]||"equal";
     return `<div class="attrib-item"><div class="attrib-head"><span class="t">${escapeHtml(r.label)}</span><span class="amt num">${r.dir==="in"?"recibió ":"puso "}${money(r.amount,r.cur)}</span></div><div class="meta">${escapeHtml(r.kind)} · ${r.date||""} · ${r.cur}</div><div class="seg-mini">${opts.map(o=>`<button data-attrib="${r.refId}" data-val="${o.v}" class="${sel===o.v?"on":""}">${escapeHtml(o.l)}</button>`).join("")}</div></div>`;
   }).join("");

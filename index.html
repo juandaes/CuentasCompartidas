@@ -139,6 +139,14 @@
   .pick-unit:active{border-color:var(--brand);background:var(--surface-2)}
   .pj-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
   .tot-break{display:block;font-size:11px;color:var(--muted);font-weight:600;margin-top:1px}
+  .usub{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:10px 0 2px}
+  .urow{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:13px}
+  .urow:last-child{border-bottom:0}
+  .urow .l{font-weight:600}
+  .urow .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
+  .unet{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:10px;padding-top:8px;border-top:2px solid var(--line)}
+  .unet .l{font-weight:800;font-size:13px}
+  .unet .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:800;font-size:15px}
 
   .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(10px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:.22s;z-index:60;box-shadow:var(--shadow);max-width:90%;text-align:center}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -273,7 +281,13 @@
     </div>
   </section>
 
-  <section id="v-detalle" class="view"><div id="detalle-content"></div></section>
+  <section id="v-detalle" class="view">
+    <div class="card" style="padding:8px;margin-bottom:14px"><div class="seg-mini" id="detalle-toggle">
+      <button data-dmode="gasto" class="on">Por gasto</button>
+      <button data-dmode="unidad">Por unidad</button>
+    </div></div>
+    <div id="detalle-content"></div>
+  </section>
 
   <section id="v-ajustes" class="view">
     <div class="card">
@@ -296,7 +310,7 @@
       <button class="btn ghost" data-act="import">Importar datos (.json)</button>
       <input id="file-import" type="file" accept="application/json,.json" style="display:none">
       <button class="btn warn" data-act="reset">Borrar todo (para todos)</button>
-      <p class="subtle" style="margin-top:12px;text-align:center">Versión: <b>reparto-auto v8</b></p>
+      <p class="subtle" style="margin-top:12px;text-align:center">Versión: <b>reparto-auto v9</b></p>
     </div>
   </section>
 </main>
@@ -399,8 +413,13 @@ function settle(bal){
   return tx;
 }
 
-/* ---------- render detalle (distribución por gasto) ---------- */
+/* ---------- render detalle (despachador) ---------- */
+let detalleMode="gasto";
 function renderDetalle(){
+  if(detalleMode==="unidad")renderDetalleUnidad();
+  else renderDetalleGasto();
+}
+function renderDetalleGasto(){
   const host=$("#detalle-content");
   if(!state.expenses.length){
     host.innerHTML=`<div class="card"><div class="empty"><div class="big">📋</div>No hay gastos para detallar todavía.<br>Agrega gastos y aquí verás cómo se reparte cada uno.</div></div>`;return;
@@ -429,6 +448,47 @@ function renderDetalle(){
     });
     html+=`</div>`;
   });
+  host.innerHTML=html;
+}
+function renderDetalleUnidad(){
+  const host=$("#detalle-content");
+  if(!state.expenses.length && !state.payments.length){
+    host.innerHTML=`<div class="card"><div class="empty"><div class="big">🧮</div>Aún no hay movimientos.<br>Aquí verás, por cada unidad, de dónde sale su saldo.</div></div>`;return;
+  }
+  let html="";
+  usedCurrencies().forEach(cur=>{
+    html+=`<div class="card"><div class="total-hero" style="margin-bottom:2px"><span class="label">Movimientos por unidad <span class="curgroup-tag">${cur}</span></span></div>`;
+    state.units.forEach(u=>{
+      const plus=[],minus=[];
+      state.expenses.filter(e=>e.currency===cur).forEach(e=>{
+        const paid=(e.payers||[]).filter(p=>p.unitId===u.id).reduce((s,p)=>s+p.amount,0);
+        if(paid>0.0001)plus.push({l:"Pagó "+e.desc,a:paid});
+        const parts=(e.participants&&e.participants.length)?e.participants:state.units.map(x=>x.id);
+        if(parts.includes(u.id)){const w=parts.reduce((s,id)=>s+unitSize(id),0)||1;minus.push({l:"Parte de "+e.desc,a:e.amount*unitSize(u.id)/w});}
+      });
+      state.payments.filter(p=>p.currency===cur).forEach(p=>{
+        if(p.from===u.id)plus.push({l:"Abono a "+unitName(p.to),a:p.amount});
+        else if(p.to===u.id)minus.push({l:"Abono recibido de "+unitName(p.from),a:p.amount});
+      });
+      if(!plus.length&&!minus.length)return;
+      const sumP=plus.reduce((s,x)=>s+x.a,0),sumM=minus.reduce((s,x)=>s+x.a,0);
+      const net=sumP-sumM;
+      const ncls=net>0.5?"pos":(net<-0.5?"neg":"zero");
+      const nettxt=Math.abs(net)<0.5?"a mano":((net>0.5?"le deben ":"debe ")+money(Math.abs(net),cur));
+      html+=`<div class="exp-detail"><div class="exp-detail-head"><span class="t">${escapeHtml(u.name)} <span style="color:var(--muted);font-weight:600;font-size:12px">·${u.size}p</span></span><span class="amt num ${ncls}">${nettxt}</span></div>`;
+      if(plus.length){
+        html+=`<div class="usub" style="color:var(--credit)">A favor (+)</div>`;
+        plus.forEach(x=>{html+=`<div class="urow"><span class="l">${escapeHtml(x.l)}</span><span class="v pos">+${money(x.a,cur)}</span></div>`;});
+      }
+      if(minus.length){
+        html+=`<div class="usub" style="color:var(--debit)">En contra (−)</div>`;
+        minus.forEach(x=>{html+=`<div class="urow"><span class="l">${escapeHtml(x.l)}</span><span class="v neg">−${money(x.a,cur)}</span></div>`;});
+      }
+      html+=`<div class="unet"><span class="l">Saldo neto</span><span class="v num ${ncls}">${(net>0.5?"+":"")+money(net,cur)}</span></div></div>`;
+    });
+    html+=`</div>`;
+  });
+  html+=`<p class="subtle" style="text-align:center;margin:-4px 4px 0">El saldo neto de cada unidad coincide con el de la pestaña Saldos. "A favor" = lo que puso o abonó; "En contra" = su parte de cada gasto o lo que le abonaron.</p>`;
   host.innerHTML=html;
 }
 
@@ -1142,6 +1202,11 @@ function initUI(){
   $("#g-cur").addEventListener("change",()=>{syncPayerAmounts();updatePaySum();});
   $("#file-import").addEventListener("change",e=>{if(e.target.files[0])importData(e.target.files[0]);e.target.value="";});
   loadMyUnit();
+  document.querySelectorAll("#detalle-toggle button").forEach(b=>b.addEventListener("click",()=>{
+    detalleMode=b.dataset.dmode;
+    document.querySelectorAll("#detalle-toggle button").forEach(x=>x.classList.toggle("on",x.dataset.dmode===detalleMode));
+    renderDetalle();
+  }));
   $("#pj-date").value=today();
   $("#pj-amount").addEventListener("input",()=>{syncCoupleShares();updateShareSum();});
   $("#pj-cur").addEventListener("change",()=>{syncCoupleShares();updateShareSum();});
